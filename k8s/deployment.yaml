@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ivolve-app
-        image: mborham6/ivolve-app:v1
+        image: mborham6/ivolve-app:v2
         ports:
         - containerPort: 5000
         imagePullPolicy: Always
