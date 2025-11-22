@@ -1,0 +1,60 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # 1. Checkout Code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 3. Build and Push Docker Image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/ivolve-app:latest
+            ${{ secrets.DOCKER_USERNAME }}/ivolve-app:v${{ github.run_number }}
+
+      # 4. Scan Image using Trivy (Bonus Step)
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ secrets.DOCKER_USERNAME }}/ivolve-app:v${{ github.run_number }}'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # 5. Update Kubernetes Manifests (CD Preparation)
+      - name: Update Kubernetes Deployment Image
+        run: |
+          cd k8s
+          sed -i "s|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/ivolve-app:v${{ github.run_number }}|g" deployment.yaml
+          
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          
+          git add deployment.yaml
+          git commit -m "Update image tag to v${{ github.run_number }}"
+          git push
