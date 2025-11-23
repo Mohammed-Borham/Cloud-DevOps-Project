@@ -53,3 +53,8 @@ variable "node_desired_count" {
   description = "Desired number of worker nodes"
   type        = number
 }
+
+variable "role_arn" {
+  description = "Role ARN for assuming AWS role"
+  type        = string
+}
